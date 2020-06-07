@@ -1,3 +1,9 @@
+"""
+This module converts Natural Earth's ne_10m_admin_0_countries.zip shapefile to
+GeoJSON. Individual countries are mapped to Drawdown regions according to
+https://github.com/ProjectDrawdown/spatial-aez/blob/master/admin_names.py
+"""
+
 import sys
 import os
 import admin_names
@@ -5,11 +11,12 @@ import geopandas
 
 help_message = """
 Usage:
-python shapefile_to_geojson.py /path/to/shapefile.zip [/path/to/output.json]
+python ne_countries_to_drawdown_regions_geojson.py /path/to/shapefile.zip [/path/to/output.json]
     produces GeoJSON file from shapefile ZIP. If output path is not provided,
     it will use name of .zip file to create JSON output file in the python working dir.
 """
 
+# List of countries and territories which should NOT be mapped to regions
 SPECIAL_COUNTRIES = [
     'China',
     'India',
@@ -19,6 +26,9 @@ SPECIAL_COUNTRIES = [
 
 
 def map_ne_admin_to_drawdown_region(row):
+    """
+    Maps Natural Earth's ADMIN name to Drawdown region
+    """
     ne_name = row['ADMIN']
     dd_name = admin_names.lookup(ne_name)
 
@@ -37,6 +47,11 @@ def map_ne_admin_to_drawdown_region(row):
 
 
 def map_ne_admin_counties_to_drawdown_regions(shapefile_zip_path):
+    """
+    This function takes ne_10m_admin_0_countries.zip shapefile, maps individual
+    countries to Drawdown regions and outputs GeoJSON which only includes
+    Drawdown regions. Individual countries' information is removed.
+    """
     esri = geopandas.read_file(f"zip://{shapefile_zip_path}")
     esri['DRAWDOWN_REGION'] = esri.apply(lambda row: map_ne_admin_to_drawdown_region(row), axis=1)
     all_rows_region_only = esri[['DRAWDOWN_REGION', 'geometry']].dropna()
@@ -64,4 +79,4 @@ if __name__ == '__main__':
 
         region_only.to_file(output_json_path, driver='GeoJSON')
 
-        print(f"TopoJSON saved to {output_json_path}")
+        print(f"GeoJSON saved to {output_json_path}")

@@ -2,16 +2,19 @@ import sys
 import os
 import admin_names
 import geopandas
-import topojson
 
 help_message = """
+Usage:
+python shapefile_to_geojson.py /path/to/shapefile.zip [/path/to/output.json]
+    produces GeoJSON file from shapefile ZIP. If output path is not provided,
+    it will use name of .zip file to create JSON output file in the python working dir.
 """
 
 SPECIAL_COUNTRIES = [
     'China',
     'India',
     'EU',
-    'USA'
+    'United States of America'
 ]
 
 
@@ -26,12 +29,14 @@ def map_ne_admin_to_drawdown_region(row):
         if dd_region is None:
             return None
         elif isinstance(dd_region, list):
+            # TODO: What to do if length of the list is more than 1?
             return dd_region[0]
         else:
+            # This should never happen, since it seems like all values in region_mapping are lists
             return dd_region
 
 
-def convert_ne_shapefile_to_drawdown_topojson(shapefile_zip_path):
+def map_ne_admin_counties_to_drawdown_regions(shapefile_zip_path):
     esri = geopandas.read_file(f"zip://{shapefile_zip_path}")
     esri['DRAWDOWN_REGION'] = esri.apply(lambda row: map_ne_admin_to_drawdown_region(row), axis=1)
     all_rows_region_only = esri[['DRAWDOWN_REGION', 'geometry']].dropna()
@@ -55,16 +60,8 @@ if __name__ == '__main__':
             shapefile_base_name = shapefile_zip_name.rsplit(".", 1)[0]
             output_json_path = f"./{shapefile_base_name}.json"
 
-        region_only = convert_ne_shapefile_to_drawdown_topojson(shapefile_zip_path)
-        tj = topojson.Topology(region_only,
-                               prequantize=True,
-                               topology=True,
-                               presimplify=True,
-                               toposimplify=True,
-                               prevent_oversimplify=True)
+        region_only = map_ne_admin_counties_to_drawdown_regions(shapefile_zip_path)
 
-        with open(output_json_path, "w") as f:
-            f.write(tj.to_json())
+        region_only.to_file(output_json_path, driver='GeoJSON')
 
         print(f"TopoJSON saved to {output_json_path}")
-
